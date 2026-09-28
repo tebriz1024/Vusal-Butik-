@@ -18,7 +18,7 @@ After:
 
 ### Edit an existing listing
 
-![Edit listing](elan-duzelt.png)
+![Edit listing](<elan duzelt.png>)![Edit listing](<elan duzelt.png>)
 
 ### Delete a listing
 
