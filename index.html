@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vüsal Butik</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1b1030; --plum:#5b2a86; --rose:#ff7aa8; --apricot:#ffb36b;
+    --glass:rgba(255,255,255,.12); --edge:rgba(255,255,255,.28); --text:#fff7fb;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    font-family:"Bricolage Grotesque",system-ui,sans-serif;
+    color:var(--text); min-height:100vh; padding:32px 20px 60px;
+    background:var(--ink); position:relative; overflow-x:hidden;
+  }
+  /* Bulanık renkli toplar: cam efektinin "arkada görünen" kısmı */
+  body::before,body::after{
+    content:""; position:fixed; border-radius:50%; filter:blur(90px); z-index:-1;
+  }
+  body::before{width:480px;height:480px;background:var(--plum);top:-120px;left:-100px}
+  body::after{width:420px;height:420px;background:var(--rose);opacity:.55;bottom:-140px;right:-80px}
+  .blob{position:fixed;width:300px;height:300px;border-radius:50%;background:var(--apricot);opacity:.35;filter:blur(90px);z-index:-1;top:45%;left:55%}
+
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800;letter-spacing:-.02em}
+  .sub{opacity:.75;margin:6px 0 28px}
+
+  .glass{
+    background:var(--glass); border:1px solid var(--edge); border-radius:20px;
+    backdrop-filter:blur(18px) saturate(140%); -webkit-backdrop-filter:blur(18px) saturate(140%);
+    box-shadow:0 8px 32px rgba(0,0,0,.25);
+  }
+  form{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;padding:16px;margin-bottom:28px}
+  input{
+    width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--edge);
+    background:rgba(255,255,255,.08);color:var(--text);font:inherit;
+  }
+  input::placeholder{color:rgba(255,255,255,.5)}
+  input:focus,button:focus-visible{outline:2px solid var(--apricot);outline-offset:2px}
+  button{
+    font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:12px;padding:12px 18px;
+    background:linear-gradient(135deg,var(--rose),var(--apricot));color:#2a0f24;
+  }
+  button.ghost{background:rgba(255,255,255,.14);color:var(--text);border:1px solid var(--edge);padding:8px 14px}
+  button.danger{background:rgba(255,90,110,.25);color:#ffd5db;border:1px solid rgba(255,120,140,.5);padding:8px 14px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+  .card{padding:20px;display:flex;flex-direction:column;gap:10px}
+  .card h3{font-size:1.25rem}
+  .price{font-size:1.9rem;font-weight:800}
+  .price small{font-size:.9rem;font-weight:400;opacity:.7}
+  .stock{font-size:.9rem;opacity:.8}
+  .stock.out{color:#ffb3bf;opacity:1}
+  .actions{display:flex;gap:8px;margin-top:6px}
+  button.order{padding:8px 14px}
+  button.order:disabled{opacity:.4;cursor:not-allowed}
+  dialog{margin:auto;color:var(--text);padding:24px;width:min(92vw,360px);background:rgba(40,20,70,.55)}
+  dialog::backdrop{background:rgba(10,4,25,.55);backdrop-filter:blur(4px)}
+  dialog h2{font-size:1.3rem;margin-bottom:4px}
+  dialog p{opacity:.75;margin-bottom:14px;font-size:.95rem}
+  dialog .fields{display:grid;gap:10px}
+  dialog .row{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+  .empty{padding:32px;text-align:center;opacity:.8;grid-column:1/-1}
+
+  #toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    padding:12px 20px;opacity:0;pointer-events:none;transition:.25s;max-width:90vw;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%)}
+
+  @media(max-width:700px){form{grid-template-columns:1fr}}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="blob"></div>
+<div class="wrap">
+  <h1>Vüsal Butik</h1>
+  <p class="sub">Məhsullarını əlavə et, qiyməti düzəlt, satılanı sil.</p>
+
+  <form id="form" class="glass">
+    <input id="basliq" placeholder="Məhsulun adı" required>
+    <input id="qiymet" type="number" step="0.01" min="0" placeholder="Qiymət (AZN)" required>
+    <input id="eded" type="number" min="0" placeholder="Say" required>
+    <button id="submitBtn" type="submit">Əlavə et</button>
+  </form>
+
+  <div id="list" class="grid"></div>
+</div>
+<dialog id="orderDlg" class="glass">
+  <form id="orderForm" method="dialog" style="display:block;padding:0;margin:0;background:none;border:0">
+    <h2 id="orderTitle">Sifariş ver</h2>
+    <p id="orderInfo"></p>
+    <div class="fields">
+      <input id="musteri" placeholder="Müştərinin adı" required>
+      <input id="orderEded" type="number" min="1" value="1" placeholder="Say" required>
+    </div>
+    <div class="row">
+      <button type="button" class="ghost" id="orderCancel">Ləğv et</button>
+      <button type="submit">Sifariş ver</button>
+    </div>
+  </form>
+</dialog>
+<div id="toast" class="glass"></div>
+
+<script>
+  // Backend ünvanı. Canlıya çıxanda YALNIZ bunu dəyişirsən.
+  const API = "http://127.0.0.1:8000";
+
+  const list = document.getElementById("list");
+  const form = document.getElementById("form");
+  const submitBtn = document.getElementById("submitBtn");
+  let editId = null; // null = yeni əlavə, rəqəm = həmin id-ni düzəlt
+
+  function toast(msg){
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    setTimeout(()=>t.classList.remove("show"), 2800);
+  }
+
+  // Backend GET / hər sətri [id, basliq, qiymet, eded] massivi kimi qaytarır
+  async function load(){
+    try{
+      const res = await fetch(API + "/");
+      const rows = await res.json();
+      render(rows);
+    }catch(e){
+      list.innerHTML = '<div class="glass empty">Backend-ə qoşulmaq olmadı. uvicorn işləyir?</div>';
+    }
+  }
+
+  function render(rows){
+    if(!rows.length){
+      list.innerHTML = '<div class="glass empty">Hələ məhsul yoxdur. Yuxarıdan ilk məhsulu əlavə et.</div>';
+      return;
+    }
+    list.innerHTML = rows.map(([id, basliq, qiymet, eded]) => `
+      <article class="glass card">
+        <h3>${basliq}</h3>
+        <div class="price">${qiymet} <small>AZN</small></div>
+        <div class="stock ${eded === 0 ? "out" : ""}">${eded === 0 ? "Bitib" : eded + " dənə qalıb"}</div>
+        <div class="actions">
+          <button class="order" ${eded === 0 ? "disabled" : ""} onclick='openOrder(${id}, ${JSON.stringify(basliq)}, ${eded})'>Sifariş</button>
+          <button class="ghost" onclick='startEdit(${id}, ${JSON.stringify(basliq)}, ${qiymet}, ${eded})'>Düzəlt</button>
+          <button class="danger" onclick="removeItem(${id})">Sil</button>
+        </div>
+      </article>`).join("");
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = {
+      basliq: document.getElementById("basliq").value,
+      qiymet: parseFloat(document.getElementById("qiymet").value),
+      eded: parseInt(document.getElementById("eded").value)
+    };
+    // editId varsa PUT (yenilə), yoxsa POST (yarat)
+    const url = editId ? `${API}/deyistir/${editId}` : `${API}/elanlar`;
+    const method = editId ? "PUT" : "POST";
+    try{
+      const res = await fetch(url, {
+        method, headers: {"Content-Type":"application/json"}, body: JSON.stringify(body)
+      });
+      if(!res.ok) throw new Error(res.status);
+      toast(editId ? "Məhsul yeniləndi" : "Məhsul əlavə olundu");
+      resetForm(); load();
+    }catch(err){
+      toast("Xəta: əməliyyat alınmadı (" + err.message + ")");
+    }
+  });
+
+  function startEdit(id, basliq, qiymet, eded){
+    editId = id;
+    document.getElementById("basliq").value = basliq;
+    document.getElementById("qiymet").value = qiymet;
+    document.getElementById("eded").value = eded;
+    submitBtn.textContent = "Yadda saxla";
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  function resetForm(){
+    editId = null; form.reset(); submitBtn.textContent = "Əlavə et";
+  }
+
+  async function removeItem(id){
+    if(!confirm("Bu məhsul silinsin?")) return;
+    try{
+      const res = await fetch(`${API}/elansil/${id}`, {method:"DELETE"});
+      if(!res.ok) throw new Error(res.status);
+      toast("Məhsul silindi"); load();
+    }catch(err){
+      toast("Xəta: silinmədi (" + err.message + ")");
+    }
+  }
+
+  // ---- Sifariş ----
+  const orderDlg = document.getElementById("orderDlg");
+  const orderForm = document.getElementById("orderForm");
+  let orderId = null;
+
+  function openOrder(id, basliq, stok){
+    orderId = id;
+    document.getElementById("orderTitle").textContent = basliq;
+    document.getElementById("orderInfo").textContent = stok + " dənə qalıb";
+    document.getElementById("orderEded").max = stok;
+    orderDlg.showModal();
+  }
+
+  document.getElementById("orderCancel").onclick = () => orderDlg.close();
+
+  orderForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const eded = parseInt(document.getElementById("orderEded").value);
+    if(!(eded >= 1)){ toast("Say ən azı 1 olmalıdır"); return; }
+    try{
+      const res = await fetch(`${API}/elan-sifaris/${orderId}`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ musteri: document.getElementById("musteri").value, eded })
+      });
+      const data = await res.json();
+      // Backend xəta versə, onun mesajını (detail) göstəririk: "Kifayet qeder stok yoxdur" və s.
+      if(!res.ok) throw new Error(data.detail || res.status);
+      toast("Sifariş qeydə alındı");
+      orderDlg.close(); orderForm.reset(); document.getElementById("orderEded").value = 1;
+      load();
+    }catch(err){
+      toast("Xəta: " + err.message);
+    }
+  });
+
+  load();
+</script>
+</body>
+</html>
